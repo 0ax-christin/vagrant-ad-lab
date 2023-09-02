@@ -8,7 +8,7 @@ win2022dc:
   box: gusztavvargadr/windows-server
   vm_name: groupName-DC
   domain_mode: default
-  ip: 192.168.20.20
+  ip: 192.168.56.20
   mem_size: 4086
   cpus: 2
 
@@ -16,12 +16,12 @@ windows1:
   box: gusztavvargadr/windows-10
   vm_name: Windows1Machine
   mem_size: 2048
-  ip: 192.168.20.21
+  ip: 192.168.56.21
   cpus: 1
 
 windows2:
   box: gusztavvargadr/windows-10
   vm_name: Windows2Machine
   mem_size: 2048
-  ip: 192.168.20.22
+  ip: 192.168.56.22
   cpus: 1
