@@ -9,7 +9,7 @@ param(
 )
 
 # Required for Win2016 which takes ages to load
-Sleep 300
+#Sleep 300
 
 $domain = Get-Content -Raw -Path "C:\vagrant\provision\variables\${domainVariables}" | ConvertFrom-Json
 
@@ -22,7 +22,7 @@ try {
 foreach ($file in $files) {
     $objects = Get-Content -Raw -Path "C:\vagrant\provision\variables\${file}" | ConvertFrom-Json
     $passExp = $true
-    foreach ($file in $files) {
+    foreach ($object in $objects.objects) {
         $path = $object.path + $domain.dn
         if ($object.type -eq "ou") {
             $name = $object.name
@@ -61,15 +61,13 @@ foreach ($file in $files) {
 
             if ($object | Get-Member passwordExp) {
                 if ($object.passwordExp -eq 'true') {
-                    $passExp = $true
+                    $passExp = $True
                 } else {
-                    $passExp = $false
+                    $passExp = $False
                 }
             }
 
             $password = ConvertTo-SecureString $object.password -AsPlaintext -Force
-		    echo $object
-		    echo $object.username
 
             New-ADUser `
                 -Name $object.username `
@@ -77,8 +75,21 @@ foreach ($file in $files) {
                 -Path $path `
                 -Enabled $true `
                 -AccountPassword $password `
-                -PasswordNeverExpires $passExp`
+                -PasswordNeverExpires ($passExp -as [bool])`
                 @optional
+
+        } elseif ($object.type -eq "service") {
+            
+            $password = ConvertTo-SecureString $object.password -AsPlaintext -Force
+
+            New-ADServiceAccount `
+            -Name $object.name `
+            -DisplayName $object.displayName `
+            -AccountPassword $password `
+            -Description $object.description `
+            -ServicePrincipalNames $object.servicePrincipalName `
+            -RestrictToSingleComputer
+
         } else {
             echo "Unknown object type."
         }
