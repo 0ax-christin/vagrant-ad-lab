@@ -73,8 +73,16 @@ Vagrant.configure("2") do |cfg|
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/install-forest.ps1 forest-variables.json"
         config.vm.provision "shell", reboot: true
 
+        # Create OU, users and service accounts
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/create-OUs-and-accounts.ps1 forest-variables.json"
+
+        # Set up SMB
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/setup-smb.ps1"
+
         #Reboot so that scheduled task runs
         #config.vm.provision "shell", reboot: true
+        # Delete Vagrant User
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1"
 
     end
     
@@ -100,17 +108,30 @@ Vagrant.configure("2") do |cfg|
             v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
         end
 
-        config.vm.network :private_network, :ip => win1_ip
+        config.vm.network :private_network, :ip => win1_ip, :gateway => dc_ip
         config.vm.provision "windows-sysprep"
         config.vm.provision "shell", reboot: true
 
         #Install Chocolatey
         config.vm.provision "install-chocolatey", type: "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/install-chocolatey.ps1"
-        config.vm.provision "shell", reboot: true
 
         # Configure keyboard/language/timezone etc.
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US"
         config.vm.provision "shell", reboot: true
+
+        # Add local MyWindows1 Account
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/create-users.ps1"
+
+        # Change DNS to point to DC
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-workstation.ps1"
+
+        # Join Computer to DC with login as Admin
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/join-domain.ps1 forest-variables.json OU=Groups"
+        config.vm.provision "shell", reboot: true
+
+        # Remove Vagrant User
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1"
+
         
     end
 
@@ -136,7 +157,7 @@ Vagrant.configure("2") do |cfg|
             v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
             v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
         end
-        config.vm.network :private_network, :ip => win2_ip
+        config.vm.network :private_network, :ip => win2_ip, :gateway => dc_ip
         config.vm.provision "windows-sysprep"
         config.vm.provision "shell", reboot: true
 
@@ -147,5 +168,22 @@ Vagrant.configure("2") do |cfg|
         # Configure keyboard/language/timezone etc.
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US"
         config.vm.provision "shell", reboot: true
+    
+        # Add local MyWindows2 Account
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/create-users.ps1"
+        
+        # Change DNS to point to DC
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-workstation.ps1"
+
+        # Join Computer to DC with login as Admin
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/join-domain.ps1"
+        config.vm.provision "shell", reboot: true
+
+        # Add Domain Accounts and Local MyWIndows accounts to Admin Group, Enable Local Admin
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/add-to-local-admin.ps1"
+
+        # Remove Vagrant User
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1"
+
     end
 end
