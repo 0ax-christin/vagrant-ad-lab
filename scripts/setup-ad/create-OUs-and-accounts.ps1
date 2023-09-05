@@ -4,11 +4,10 @@
     The same functionality exists for Users, Admin Accounts and Service Accounts. All accounts have password expiry disabled
     'provision/variables/forest-variables.json' is read for general domain information
 
-    Have to copy from admin account to create these accounts
     This script deals with:
     Step 10 -  Creating OU
-    Step 12 - Admin Account creation
-    Step 13 and 17- Service Account creation
+    Step 12 - Admin Account creation - Created by adding any use whose value in admin is true to Membership of Administrators and Domain Admins group
+    Step 13 and 17- Service Account creation - Creation of Managed Service Account
     Step 14 and 15 - Domain User creation
     This script uses the values in users.json to create the above account details
 #>
@@ -90,8 +89,17 @@ foreach ($file in $files) {
                 -Enabled $true `
                 -AccountPassword $password `
                 -PasswordNeverExpires ($passExp -as [bool])`
+                -Instance $adminTemplate `
                 @optional
 
+            if ($object.admin -eq "true") {
+                Add-ADGroupMember -Identity "Administrators" -Members $object.username
+                Add-ADGroupMember -Identity "Schema Admins" -Members $object.username
+                Add-ADGroupMember -Identity "Enterprise Admins" -Members $object.username
+                Add-ADGroupMember -Identity "Domain Admins" -Members $object.username
+                Add-ADGroupMember -Identity "Group Policy Creator Owners" -Members $object.username
+            }
+            
         } elseif ($object.type -eq "service") {
             
             $password = ConvertTo-SecureString $object.password -AsPlaintext -Force
