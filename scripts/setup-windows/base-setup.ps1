@@ -22,7 +22,7 @@ ForEach-Object {
 # tzutil /l lists all available timezone ids
 # (UTC+04:00) Abu Dhabi, Muscat
 #Arabian Standard Time
-& $env:windir\system32\tzutil /s "Arabian Standard Time"
+& $env:windir\system32\tzutil /s "GMT Standard Time"
 
 # We need to enable the Windows License Manager Service for the next step to work (licensing keys will fail otherwise)
 if (Get-Service LicenseManager -ErrorAction SilentlyContinue) {

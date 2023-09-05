@@ -68,10 +68,13 @@ Vagrant.configure("2") do |cfg|
         # NB this is needed because the default negotiate transport stops working
         # after the domain controller is installed.
         # see https://groups.google.com/forum/#!topic/vagrant-up/sZantuCM0q4
+        config.vm.communicator = "winrm"
         config.winrm.transport = :plaintext
         config.winrm.basic_auth_only = true
         config.winrm.retry_limit = 30
         config.winrm.retry_delay = 10
+        config.winrm.username = "vagrant"
+        config.winrm.password = "vagrant"
         
         config.vm.provider :virtualbox do |v, override|
             v.gui = true
@@ -86,30 +89,46 @@ Vagrant.configure("2") do |cfg|
  
         config.vm.provision "windows-sysprep"
         config.vm.provision "shell", reboot: true
- 
-        # Configure keyboard/language/timezone etc.
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US"
-        config.vm.provision "shell", reboot: true 
 
+        cfg.vm.provision "shell", privileged: false, inline: <<-SHELL
+        Set-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" -Name AutoAdminLogon -Value 1 -Force | Out-Null
+        Set-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" -Name DefaultUserName -Value "vagrant" -Force | Out-Null
+        Set-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" -Name DefaultPassword -Value "vagrant" -Force | Out-Null
+        Remove-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" -Name AutoAdminLogonCount -Confirm -ErrorAction SilentlyContinue
+        SHELL
+        
+        config.vm.provision "reload"
+
+        # Install Forest and Certificate Services
+        # Create forest root
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/install-forest.ps1 forest-variables.json",privileged: true
+        config.vm.provision "shell", reboot: true
+
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/domain-controller-wait.ps1",privileged: true
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/add-vagrant-domain-admin.ps1",privileged: true
+
+        # Create OU, users/Admin users and service accounts as per users.json, all users created are added to Groups OU except Administrator and Guest
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/create-OUs-and-accounts.ps1 forest-variables.json", privileged: true
+
+        # Set up SMB as per Step 16
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/setup-smb.ps1",privileged: true
+        
         # Configure DNS
         #config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-dc.ps1 dns_entries.csv"
         #config.vm.provision "shell", reboot: true
 
-        # Install Forest and Certificate Services
-        # Create forest root
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/install-forest.ps1 forest-variables.json"
-        config.vm.provision "shell", reboot: true
+        # Configure keyboard/language/timezone etc.
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US", privileged: true
+        config.vm.provision "shell", reboot: true 
 
-        # Create OU, users/Admin users and service accounts as per users.json, all users created are added to Groups OU except Administrator and Guest
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/create-OUs-and-accounts.ps1 forest-variables.json"
-
-        # Set up SMB as per Step 16
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/setup-smb.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/domain-controller-wait.ps1",privileged: true
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/ca-install.ps1",privileged: true
+        config.vm.provision "shell", reboot: true 
 
         #Reboot so that scheduled task runs
         #config.vm.provision "shell", reboot: true
         # Disable/Delete Vagrant User to finish setup
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1", privileged: true
 
     end
     
@@ -137,28 +156,28 @@ Vagrant.configure("2") do |cfg|
         end
         # Specify static IP, as well as gateway and dns as DC
         config.vm.network :private_network, :ip => win1_ip, :gateway => dc_ip, :dns => dc_ip
-        config.vm.provision "windows-sysprep"
+        config.vm.provision "windows-sysprep", privileged: true
         config.vm.provision "shell", reboot: true
 
         #Install Chocolatey
-        config.vm.provision "install-chocolatey", type: "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/install-chocolatey.ps1"
+        config.vm.provision "install-chocolatey", type: "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/install-chocolatey.ps1", privileged: true
 
         # Configure keyboard/language/timezone etc.
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US", privileged: true
         config.vm.provision "shell", reboot: true
 
         # Add local MyWindows1 Account
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/create-users.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/create-users.ps1", privileged: true
 
         # Change DNS to point to DC
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-workstation.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-workstation.ps1", privileged: true
 
         # Join Computer to DC with login as Admin as per Step 21
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/join-domain.ps1 forest-variables.json OU=Groups"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/join-domain.ps1 forest-variables.json OU=Groups", privileged: true
         config.vm.provision "shell", reboot: true
 
         # Remove/Disable Vagrant User to finish setup
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1", privileged: true
         config.vm.provision "shell", reboot: true
         
     end
@@ -188,32 +207,32 @@ Vagrant.configure("2") do |cfg|
         end
         # Specify static IP, as well as gateway and dns as DC
         config.vm.network :private_network, :ip => win2_ip, :gateway => dc_ip, :dns => dc_ip
-        config.vm.provision "windows-sysprep"
+        config.vm.provision "windows-sysprep", privileged: true
         config.vm.provision "shell", reboot: true
 
         #Install Chocolatey
-        config.vm.provision "install-chocolatey", type: "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/install-chocolatey.ps1"
+        config.vm.provision "install-chocolatey", type: "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/install-chocolatey.ps1", privileged: true
         config.vm.provision "shell", reboot: true
 
         # Configure keyboard/language/timezone etc.
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US", privileged: true
         config.vm.provision "shell", reboot: true
     
         # Add local MyWindows2 Account
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/create-users.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/create-users.ps1", privileged: true
         
         # Change DNS to point to DC
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-workstation.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-workstation.ps1",privileged: true
 
         # Join Computer to DC with login as Admin as per Step 21
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/join-domain.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/join-domain.ps1", privileged: true
         config.vm.provision "shell", reboot: true
 
         # Add Domain Accounts and Local MyWIndows accounts to Admin Group, Enable Local Admin with password as per Step 23 and 24
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/add-to-local-admin.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/add-to-local-admin.ps1", privileged: true
 
         # Remove/Disble Vagrant User To finish setup
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1"
+        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1", privileged: true
         config.vm.provision "shell", reboot: true
     end
 end

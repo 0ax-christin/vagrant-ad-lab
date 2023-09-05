@@ -37,20 +37,9 @@ Install-ADDSForest `
     -InstallDns `
     -CreateDnsDelegation:$false `
     -DomainName $forest.name `
-    -DomainMode 7 `
-    -ForestMode 7 `
+    -DomainNetbiosName $($forest.name -split '\.')[0].ToUpperInvariant() `
+    -DomainMode 'WinThreshold' `
+    -ForestMode 'WinThreshold' `
     -SafeModeAdministratorPassword $safeModePassword `
     -NoRebootOnCompletion `
-    -Force
-    #-DomainNetbiosName $forest.netbiosName `
-
-#some way to pause before next step
-
-# Install certificate services
-Install-WindowsFeature Adcs-Cert-Authority
-Import-Module ADCSDeployment
-# Specify validity period to 99 as per Step 7
-Install-AdcsCertificationAuthority `
-    -ValidityPeriod Years`
-    -ValidityPeriodUnits 99`
     -Force
