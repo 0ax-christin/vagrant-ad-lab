@@ -1,3 +1,17 @@
+<#
+    This script reads the 'provision/variables/users.json' for entries to add to domain, each entry has a type which is read to specify the action performed
+    E.g. for type 'ou', an OU with the specified parameters is created
+    The same functionality exists for Users, Admin Accounts and Service Accounts. All accounts have password expiry disabled
+    'provision/variables/forest-variables.json' is read for general domain information
+
+    Have to copy from admin account to create these accounts
+    This script deals with:
+    Step 10 -  Creating OU
+    Step 12 - Admin Account creation
+    Step 13 and 17- Service Account creation
+    Step 14 and 15 - Domain User creation
+    This script uses the values in users.json to create the above account details
+#>
 param(
     [string]
     [Parameter(Mandatory = $true, Position=0)]

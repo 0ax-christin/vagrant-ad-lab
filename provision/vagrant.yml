@@ -1,17 +1,18 @@
 common:
-  domain_name: Groupname.local
-  company_name: 'Groupname'
+  domain_name: qwerty.local
+  company_name: 'qwerty'
 
 # - AD Config ----------------------------------------------------------------
 ## Windows Server 2022
 win2022dc:
   box: gusztavvargadr/windows-server
-  vm_name: groupName-DC
+  vm_name: qwerty-DC
   domain_mode: default
   ip: 192.168.56.20
   mem_size: 4086
   cpus: 2
 
+## Windows 10 Enterprise 1
 windows1:
   box: gusztavvargadr/windows-10
   vm_name: Windows1Machine
@@ -19,6 +20,7 @@ windows1:
   ip: 192.168.56.21
   cpus: 1
 
+## Windows 10 Enterprise 1
 windows2:
   box: gusztavvargadr/windows-10
   vm_name: Windows2Machine

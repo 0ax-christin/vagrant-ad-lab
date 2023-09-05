@@ -1,7 +1,7 @@
 param(
  [string] $script = "network-setup-workstation.ps1",
  [string] $dnsentries = "dns-entries.csv"
- [string] $domain = "Groupname.local"
+ [string] $domain = "qwerty.local"
 )
 
 if (!$script) {

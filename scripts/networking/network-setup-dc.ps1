@@ -1,5 +1,5 @@
 param(
- [string] $domain = "Groupname.local"
+ [string] $domain = "qwerty.local"
 )
 # Do this after ADDS install
 $ip = (Get-NetAdapter | Get-NetIPAddress | ? addressfamily -eq 'IPv4').ipaddress.split(".")
