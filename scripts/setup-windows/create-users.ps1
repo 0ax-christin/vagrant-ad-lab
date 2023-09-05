@@ -1,7 +1,20 @@
-$machinePass = "Password1!"
-$password = ConvertTo-SecureString $machinePass -AsPlaintext -Force
-if ($env:COMPUTERNAME -eq 'Windows1Machine') {
-    New-LocalUser -Name "MyWindows1" -Password $password -FullName "My Windows 1" -Description "Local My Windows User"
-} elseif ($env:COMPUTERNAME -eq 'Windows2Machine') {
-    New-LocalUser -Name "MyWindows2" -Password $password -FullName "My Windows 2" -Description "Local My Windows User"
+<#
+    Step 8
+    As per 'provision/variables/local-users.json', Local accounts are created in machines of a given hostname with specified password
+    In our case, in Windows1Machine there will be an account MyWindows1 added
+    and in Windows2Machine, MyWindows2 is added with specified password
+#>
+param(
+    [string[]]
+    [Parameter(Mandatory = $true, Position=0)]
+    $file
+)
+
+$machines = Get-Content -Raw -Path "C:\vagrant\provision\variables\${file}" | ConvertFrom-Json
+foreach ($machine in $machines.machines) {
+    if ($env:COMPUTERNAME -eq $machine.name) {
+        foreach ($account in $machine.accounts) {
+            New-LocalUser -Name $account.name -Password $account.password -FullName $account.fullName -Description $account.description
+        }
+    }
 }

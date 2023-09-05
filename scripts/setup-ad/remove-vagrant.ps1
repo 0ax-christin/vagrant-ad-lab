@@ -1,3 +1,15 @@
-Remove-LocalUser vagrant
+param(
+    [string] $disableOrDel = "disable"
+)
 
-Remove-ADUser -Identity vagrant
+if($disableOrDel -eq "disable") {
+    Disable-LocalUser -Name "vagrant"
+    if (Get-Module -ListAvailable -Name ActiveDirectory) {
+        Disable-ADAccount -Identity vagrant
+    }
+} elseif ($disableOrDel -eq "delete") {
+    Remove-LocalUser vagrant
+    if (Get-Module -ListAvailable -Name ActiveDirectory) {
+        Remove-ADUser -Identity vagrant
+    }
+}
