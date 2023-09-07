@@ -7,14 +7,15 @@
 param(
     [string[]]
     [Parameter(Mandatory = $true, Position=0)]
-    $file
+    $file = 'local-users.json'
 )
 
 $machines = Get-Content -Raw -Path "C:\vagrant\provision\variables\${file}" | ConvertFrom-Json
+$password = ConvertTo-SecureString $account.password -AsPlainText -Force
 foreach ($machine in $machines.machines) {
     if ($env:COMPUTERNAME -eq $machine.name) {
         foreach ($account in $machine.accounts) {
-            New-LocalUser -Name $account.name -Password $account.password -FullName $account.fullName -Description $account.description
+            New-LocalUser -Name $account.name -Password $password -FullName $account.fullName -Description $account.description
         }
     }
 }

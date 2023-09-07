@@ -1,12 +1,8 @@
-common:
-  domain_name: qwerty.local
-  company_name: 'qwerty'
-
 # - AD Config ----------------------------------------------------------------
 ## Windows Server 2022
 win2022dc:
-  box: gusztavvargadr/windows-server
-  vm_name: qwerty-DC
+  box: 'gusztavvargadr/windows-server'
+  vm_name: 'qwerty-DC'
   domain_mode: default
   ip: 192.168.56.20
   mem_size: 4086
@@ -14,16 +10,16 @@ win2022dc:
 
 ## Windows 10 Enterprise 1
 windows1:
-  box: gusztavvargadr/windows-10
-  vm_name: Windows1Machine
+  box: 'gusztavvargadr/windows-10'
+  vm_name: 'Windows1Machine'
   mem_size: 2048
   ip: 192.168.56.21
   cpus: 1
 
 ## Windows 10 Enterprise 1
 windows2:
-  box: gusztavvargadr/windows-10
-  vm_name: Windows2Machine
+  box: 'gusztavvargadr/windows-10'
+  vm_name: 'Windows2Machine'
   mem_size: 2048
   ip: 192.168.56.22
   cpus: 1

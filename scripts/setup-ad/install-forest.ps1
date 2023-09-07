@@ -18,7 +18,7 @@ echo 'Resetting the Administrator account password and settings...'
 $localAdminPassword = ConvertTo-SecureString $forest.administratorPassword -AsPlainText -Force
 Set-LocalUser `
     -Name Administrator `
-    -AccountNeverExpires `
+    -AccountNeverExpires:$true `
     -Password $localAdminPassword `
     -PasswordNeverExpires:$true `
     -UserMayChangePassword:$true

@@ -14,17 +14,17 @@
 param(
     [string]
     [Parameter(Mandatory = $true, Position=0)]
-    $domainVariables,
+    $forestVariables = 'forest-variables.json',
 
     [string[]]
     [Parameter(Position=1, ValueFromRemainingArguments)]
-    $files
+    $files = 'users.json'
 )
 
 # Required for Win2016 which takes ages to load
 #Sleep 300
 
-$domain = Get-Content -Raw -Path "C:\vagrant\provision\variables\${domainVariables}" | ConvertFrom-Json
+$domain = Get-Content -Raw -Path "C:\vagrant\provision\variables\${forestVariables}" | ConvertFrom-Json
 
 try {
     Import-Module ActiveDirectory -ErrorAction Stop
@@ -89,7 +89,6 @@ foreach ($file in $files) {
                 -Enabled $true `
                 -AccountPassword $password `
                 -PasswordNeverExpires ($passExp -as [bool])`
-                -Instance $adminTemplate `
                 @optional
 
             if ($object.admin -eq "true") {

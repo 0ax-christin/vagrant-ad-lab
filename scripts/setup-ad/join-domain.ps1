@@ -2,7 +2,7 @@
 # OU is the optional path prefix, e.g. OU=Servers
 #
 param(
-    [string] $forestVariables,
+    [string] $forestVariables = "forest-variables.json",
     [string] $ou = "default"
 )
 
