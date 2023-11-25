@@ -1,7 +1,9 @@
 # - AD Config ----------------------------------------------------------------
 ## Windows Server 2022
 win2022dc:
-  box: 'gusztavvargadr/windows-server'
+  #box: 'gusztavvargadr/windows-server'
+  #box: 'jborean93/WindowsServer2019'
+  box: 'peru/windows-server-2019-standard-x64-eval'
   vm_name: 'qwerty-DC'
   domain_mode: default
   ip: 192.168.56.20
@@ -10,7 +12,8 @@ win2022dc:
 
 ## Windows 10 Enterprise 1
 windows1:
-  box: 'gusztavvargadr/windows-10'
+  #box: 'gusztavvargadr/windows-10'
+  box: 'peru/windows-10-enterprise-x64-eval'
   vm_name: 'Windows1Machine'
   mem_size: 2048
   ip: 192.168.56.21
@@ -18,7 +21,8 @@ windows1:
 
 ## Windows 10 Enterprise 1
 windows2:
-  box: 'gusztavvargadr/windows-10'
+  #box: 'gusztavvargadr/windows-10'
+  box: 'peru/windows-10-enterprise-x64-eval'
   vm_name: 'Windows2Machine'
   mem_size: 2048
   ip: 192.168.56.22

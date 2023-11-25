@@ -74,59 +74,23 @@ Vagrant.configure("2") do |cfg|
         config.winrm.username = "vagrant"
         config.winrm.password = "vagrant"
         
-        config.vm.provider :virtualbox do |v, override|
-            v.gui = true
-            v.cpus = config_yaml['win2022dc']['cpus']
-            v.memory = config_yaml['win2022dc']['mem_size']
-            v.customize ["modifyvm", :id, "--vram", 32]
-            v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
-            v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
+
+        config.vm.provider :libvirt do |lv, config|
+            lv.memory = config_yaml['win2022dc']['mem_size']
+            lv.cpus = config_yaml['win2022dc']['cpus']
+            
+            lv.cpu_mode = 'host-passthrough'
+            lv.keymap = 'pt'
+            # replace the default synced_folder with something that works in the base box.
+            # NB for some reason, this does not work when placed in the base box Vagrantfile.
+            config.vm.synced_folder '.', '/vagrant', type: 'smb', smb_username: ENV['VAGRANT_SMB_USER'], smb_password: ENV['VAGRANT_SMB_PASSWORD']
         end
+
         # Creates static IP as per vagrant.yml
         config.vm.network :private_network, :ip => dc_ip
  
         config.vm.provision "windows-sysprep"
         config.vm.provision "shell", reboot: true
-
-        cfg.vm.provision "shell", privileged: true, inline: <<-SHELL
-        Set-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" -Name AutoAdminLogon -Value 1 -Force | Out-Null
-        Set-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" -Name DefaultUserName -Value "vagrant" -Force | Out-Null
-        Set-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" -Name DefaultPassword -Value "vagrant" -Force | Out-Null
-        SHELL
-        #Remove-ItemProperty "HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon" -Name AutoAdminLogonCount -Confirm -ErrorAction SilentlyContinue
-
-        config.vm.provision "reload"
-
-        config.vm.provision "shell", path: "scripts/SetupFinal.cmd"
-
-        # Install Forest and Certificate Services
-        # Create forest root
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/install-forest.ps1 forest-variables.json",privileged: true
-        config.vm.provision "shell", reboot: true
-
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/domain-controller-wait.ps1",privileged: true
-        # Does not work?
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/add-vagrant-domain-admin.ps1",privileged: true
-
-        # Create OU, users/Admin users and service accounts as per users.json, all users created are added to Groups OU except Administrator and Guest
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/create-OUs-and-accounts.ps1 forest-variables.json users.json", privileged: true
-
-        # Set up SMB as per Step 16
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/setup-smb.ps1",privileged: true
-    
-        # Configure keyboard/language/timezone etc.
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US", privileged: true
-        config.vm.provision "shell", reboot: true 
-
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/domain-controller-wait.ps1",privileged: true
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/ca-install.ps1",privileged: true
-        config.vm.provision "shell", reboot: true 
-
-        #Reboot so that scheduled task runs
-        #config.vm.provision "shell", reboot: true
-        # Disable/Delete Vagrant User to finish setup
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1", privileged: true
-
     end
     
     cfg.vm.define "win10ent1" do |config|
@@ -147,6 +111,7 @@ Vagrant.configure("2") do |cfg|
         config.winrm.username = "vagrant"
         config.winrm.password = "vagrant"
 
+
         config.vm.provider :virtualbox do |v, override|
             v.gui = true
             v.cpus = config_yaml['windows1']['cpus']
@@ -163,7 +128,7 @@ Vagrant.configure("2") do |cfg|
             lv.keymap = 'pt'
             # replace the default synced_folder with something that works in the base box.
             # NB for some reason, this does not work when placed in the base box Vagrantfile.
-            #            config.vm.synced_folder '.', '/vagrant', type: 'smb', smb_username: ENV['USER'], smb_password: ENV['VAGRANT_SMB_PASSWORD']
+            config.vm.synced_folder '.', '/vagrant', type: 'smb', smb_username: ENV['VAGRANT_SMB_USER'], smb_password: ENV['VAGRANT_SMB_PASSWORD']
         end
 
         # Specify static IP, as well as gateway and dns as DC
@@ -177,26 +142,13 @@ Vagrant.configure("2") do |cfg|
 
         # Configure keyboard/language/timezone etc.
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US", privileged: true
-        config.vm.provision "shell", reboot: true
 
         # Add local MyWindows1 Account
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/create-users.ps1 local-users.json", privileged: true
 
         # Change DNS to point to DC
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-workstation.ps1", privileged: true
-
-        # Join Computer to DC with login as Admin as per Step 21
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/join-domain.ps1 forest-variables.json OU=Groups", privileged: true
         config.vm.provision "shell", reboot: true
-
-        # Add Domain Accounts and Local MyWIndows accounts to Admin Group, Enable Local Admin with password as per Step 23 and 24
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/add-to-local-admin.ps1 forest-variables.json", privileged: true
-
-
-        # Remove/Disable Vagrant User to finish setup
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1", privileged: true
-        config.vm.provision "shell", reboot: true
-        
     end
 
     cfg.vm.define "win10ent2" do |config|
@@ -226,6 +178,18 @@ Vagrant.configure("2") do |cfg|
             v.customize ["modifyvm", :id, "--clipboard", "bidirectional"]
             v.customize ["setextradata", "global", "GUI/SuppressMessages", "all" ]
         end
+        
+        config.vm.provider :libvirt do |lv, config|
+            lv.memory = config_yaml['win2022dc']['mem_size']
+            lv.cpus = config_yaml['win2022dc']['cpus']
+            
+            lv.cpu_mode = 'host-passthrough'
+            lv.keymap = 'pt'
+            # replace the default synced_folder with something that works in the base box.
+            # NB for some reason, this does not work when placed in the base box Vagrantfile.
+
+            config.vm.synced_folder '.', '/vagrant', type: 'smb', smb_username: ENV['VAGRANT_SMB_USER'], smb_password: ENV['VAGRANT_SMB_PASSWORD']
+        end
         # Specify static IP, as well as gateway and dns as DC
         # Set up gateway with powershell
         config.vm.network :private_network, :ip => win2_ip
@@ -235,27 +199,15 @@ Vagrant.configure("2") do |cfg|
 
         #Install Chocolatey
         config.vm.provision "install-chocolatey", type: "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/install-chocolatey.ps1", privileged: true
-        config.vm.provision "shell", reboot: true
 
         # Configure keyboard/language/timezone etc.
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/base-setup.ps1 en-US", privileged: true
-        config.vm.provision "shell", reboot: true
     
         # Add local MyWindows2 Account
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-windows/create-users.ps1 local-users.json", privileged: true
         
         # Change DNS to point to DC
         config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/networking/network-setup-scheduler.ps1 network-setup-workstation.ps1",privileged: true
-
-        # Join Computer to DC with login as Admin as per Step 21
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/join-domain.ps1 forest-variables.json OU=Groups", privileged: true
-        config.vm.provision "shell", reboot: true
-
-        # Add Domain Accounts and Local MyWIndows accounts to Admin Group, Enable Local Admin with password as per Step 23 and 24
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/add-to-local-admin.ps1 forest-variables.json", privileged: true
-
-        # Remove/Disble Vagrant User To finish setup
-        config.vm.provision "shell", path: "scripts/caller.ps1", args: "scripts/setup-ad/remove-vagrant.ps1", privileged: true
         config.vm.provision "shell", reboot: true
     end
 end
